@@ -6,13 +6,14 @@ A [ctfcli](https://github.com/CTFd/ctfcli) plugin for deploying CTF challenge co
 
 1. Install the plugin: `ctf plugins install https://github.com/pl4nty/ctfcli-deploy-azure.git`
 2. Create an [Azure Container Apps environment](https://learn.microsoft.com/en-us/azure/container-apps/environment) and copy its [resource ID](https://learn.microsoft.com/en-us/azure/storage/common/storage-account-get-info?tabs=portal#get-the-resource-id-for-a-storage-account)
-3. Add a [custom DNS suffix](https://learn.microsoft.com/en-us/azure/container-apps/environment-custom-dns-suffix)
+3. (Optional) Add a [custom DNS suffix](https://learn.microsoft.com/en-us/azure/container-apps/environment-custom-dns-suffix)
 
 ## Usage
 
 1. Login to Azure with a [method supported by DefaultAzureCredential](https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/identity/azure-identity/README.md#defaultazurecredential) eg `az login`
 2. Add container registry credentials to `.ctf/config`, or login to a container registry eg `az acr login --name example` and add `--skip-login` below
 3. `ctf challenge deploy --host "azure://management.azure.com[env resource ID]?registry=ghcr.io/username"`
+4. (Optional) If using a custom domain suffix, provide it in the suffix parameter eg "&suffix=.chals.example.com"
 
 ## Private container registries
 

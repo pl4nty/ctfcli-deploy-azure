@@ -42,7 +42,7 @@ class AzureDeploymentHandler(DeploymentHandler):
             )
             return DeploymentResult(False)
 
-        # azure://management.azure.com/subscriptions/id/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/cae?registry=example.azurecr.io&identity=<ARM ID>
+        # azure://management.azure.com/subscriptions/id/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/cae?registry=example.azurecr.io&suffix=.chals.example.com&identity=<ARM ID>
         host_url = urlparse(self.host)
         query = parse_qs(host_url.query)
         registry = query.get("registry", None)
@@ -97,7 +97,11 @@ class AzureDeploymentHandler(DeploymentHandler):
             )
         ).result()
 
-        connection_info = result.latest_revision_fqdn
+        if query.get("suffix", None):
+            connection_info = f"{name}{query.get('suffix')[0]}"
+        else:
+            connection_info = result.latest_revision_fqdn
+        
         match self.challenge.get("protocol"):
             case "tcp":
                 connection_info += f":{self.challenge.image.get_exposed_port()}"
