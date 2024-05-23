@@ -7,7 +7,7 @@
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1@sha256:853fe12eb71b5de8baf2dbd2bb7574bb251251b780332b77b00c866210d76610": {},
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1@sha256:20761bd733511c1995ee955682cc2778b0a2e556abf88e9b88490c3be3c80bbc": {},
 		"ghcr.io/devcontainers/features/azure-cli:1@sha256:9ffd927aff15b77772269717999faf91fb07930029ec408402f4bc2715da9cc2": {}
 	}
 
