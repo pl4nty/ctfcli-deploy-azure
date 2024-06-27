@@ -104,7 +104,7 @@ class AzureDeploymentHandler(DeploymentHandler):
         
         match self.challenge.get("protocol"):
             case "tcp":
-                connection_info += f":{self.challenge.image.get_exposed_port()}"
+                connection_info = f"nc {connection_info} {self.challenge.image.get_exposed_port()}"
             case "https":
                 connection_info = f"https://{connection_info}"
 
