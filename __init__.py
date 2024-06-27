@@ -76,7 +76,7 @@ class AzureDeploymentHandler(DeploymentHandler):
                 configuration=Configuration(
                     ingress=Ingress(
                         external=True,
-                        transport="auto",
+                        transport="tcp" if self.protocol == "tcp" else "auto", # auto is http-only
                         target_port=self.challenge.image.get_exposed_port(),
                         exposed_port=self.protocol == "tcp" and self.challenge.image.get_exposed_port(),
                         sticky_sessions=IngressStickySessions(affinity="sticky")
