@@ -42,7 +42,7 @@ class AzureDeploymentHandler(DeploymentHandler):
             )
             return DeploymentResult(False)
 
-        # azure://management.azure.com/subscriptions/id/resourceGroups/rg/providers/Microsoft.App/managedEnvironments/cae?registry=example.azurecr.io&suffix=chals.example.com&identity=<ARM ID>
+        # azure://management.azure.com/subscriptions/<id>/resourceGroups/<rg>/providers/Microsoft.App/managedEnvironments/cae?registry=example.azurecr.io&suffix=chals.example.com&identity=<ARM ID>
         host_url = urlparse(self.host)
         query = parse_qs(host_url.query)
         registry = query.get("registry", None)
