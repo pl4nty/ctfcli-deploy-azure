@@ -1,2 +1,2 @@
 azure-identity==1.23.1
-azure-mgmt-appcontainers==3.2.0
+azure-mgmt-appcontainers==5.0.0
