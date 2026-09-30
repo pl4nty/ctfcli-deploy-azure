@@ -7,8 +7,7 @@ import click
 from slugify import slugify
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.core.tools import parse_resource_id
-from azure.mgmt.appcontainers import ContainerAppsAPIClient
-from azure.mgmt.appcontainers.models import ContainerApp, ManagedServiceIdentity, Configuration, Ingress, IngressStickySessions, RegistryCredentials, Template, Container
+from azure.mgmt.appcontainers import ContainerAppsAPIClient, types
 
 from ctfcli.core.deployment import register_deployment_handler
 from ctfcli.core.deployment.base import DeploymentHandler, DeploymentResult
@@ -22,11 +21,8 @@ class AzureDeploymentHandler(DeploymentHandler):
         super(AzureDeploymentHandler, self).__init__(*args, **kwargs)
 
         # default to tcp for pwn challenges and https for web
-        match self.challenge.get("category"):
-            case "pwn":
-                self.challenge.setdefault("protocol", "tcp")
-            case "web":
-                self.challenge.setdefault("protocol", "https")
+        if not self.protocol:
+            self.protocol = {"pwn": "tcp", "web": "https"}.get(self.challenge.get("category"))
 
     def deploy(self, skip_login=False, *args, **kwargs) -> DeploymentResult:
         # Check whether challenge defines image
@@ -61,50 +57,53 @@ class AzureDeploymentHandler(DeploymentHandler):
         result = RegistryDeploymentHandler(self.challenge, f"registry://{registry}").deploy(skip_login)
         if not result.success:
             return result
-        
+
+        # after the registry push, which builds the image
+        port = self.challenge.image.get_exposed_port()
+        if not port:
+            click.secho("Challenge image does not expose a port", fg="red")
+            return DeploymentResult(False)
+        port = int(port)
+
+        identities = query.get("identity", [])
+        ingress: types.Ingress = {
+            "external": True,
+            "transport": "tcp" if self.protocol == "tcp" else "auto", # auto is http-only
+            "targetPort": port,
+            "stickySessions": {"affinity": "sticky"},
+        }
+        if self.protocol == "tcp":
+            ingress["exposedPort"] = port
+
+        # v5 accepts plain ARM JSON dicts, typed by azure.mgmt.appcontainers.types
         name = slugify(self.challenge.get("name"))
-        result = client.container_apps.begin_create_or_update(
-            resource_group_name=id.get("resource_group"),
-            container_app_name=name,
-            container_app_envelope=ContainerApp(
-                location=environment.location,
-                environment_id=environment.id,
-                identity=ManagedServiceIdentity(
-                    type="UserAssigned",
-                    user_assigned_identities={id: {} for id in query.get("identity", [])}
-                ),
-                configuration=Configuration(
-                    ingress=Ingress(
-                        external=True,
-                        transport="tcp" if self.protocol == "tcp" else "auto", # auto is http-only
-                        target_port=self.challenge.image.get_exposed_port(),
-                        exposed_port=self.protocol == "tcp" and self.challenge.image.get_exposed_port(),
-                        sticky_sessions=IngressStickySessions(affinity="sticky")
-                    ),
-                    registries=[RegistryCredentials(
-                        server=registry,
-                        identity=id
-                    ) for id in query.get("identity", [])]
-                ),
-                template=Template(
-                    containers=[
-                        Container(
-                            name="main",
-                            image=f"{registry}/{name}"
-                        )
-                    ]
-                )
-            )
-        ).result()
+        container_app: types.ContainerApp = {
+            "location": environment.location,
+            "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {identity: {} for identity in identities},
+            } if identities else {"type": "None"},
+            "properties": {
+                "environmentId": environment.id,
+                "configuration": {
+                    "ingress": ingress,
+                    "registries": [{"server": registry.split("/")[0], "identity": identity} for identity in identities],
+                },
+                "template": {
+                    "containers": [{"name": "main", "image": f"{registry.rstrip('/')}/{self.challenge.image.basename}"}],
+                },
+            },
+        }
+        result = client.container_apps.begin_create_or_update(id.get("resource_group"), name, container_app).result()
 
         if query.get("suffix", None):
             connection_info = f"{name}.{query.get('suffix')[0]}"
         else:
-            connection_info = result.latest_revision_fqdn
-        
-        match self.challenge.get("protocol"):
+            connection_info = result.properties.latest_revision_fqdn
+
+        match self.protocol:
             case "tcp":
-                connection_info = f"nc {connection_info} {self.challenge.image.get_exposed_port()}"
+                connection_info = f"nc {connection_info} {port}"
             case "https":
                 connection_info = f"https://{connection_info}"
 
